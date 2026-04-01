@@ -1,0 +1,77 @@
+import fs from "fs";
+import path from "path";
+import openai from "@/lib/openai";
+
+interface Phase2Request {
+  teamId: string;
+  concepts: [string, string];
+  userMessage: string;
+}
+
+const SYSTEM_PROMPT = `너는 창의적 개념 결합을 돕는 AI야.
+사용자가 제시한 두 개의 상반된 개념과 요구사항을 바탕으로, 두 개념이 창의적으로 결합된 방식을 설명해.
+반드시 아래 JSON 형식으로만 응답해. 다른 텍스트는 포함하지 마.
+
+{
+  "fusionDescription": "두 개념이 결합된 방식과 그 창의적 의미에 대한 설명",
+  "imagePrompt": "결합된 개념을 시각화하기 위한 영어 이미지 생성 프롬프트"
+}
+
+주의사항:
+- fusionDescription은 한국어로 3~5문장으로 작성할 것
+- imagePrompt는 DALL-E 3에 적합한 상세한 영어 프롬프트로 작성할 것
+- imagePrompt는 두 개념의 시각적 결합이 명확히 드러나도록 구체적으로 작성할 것`;
+
+async function downloadImage(url: string, filename: string): Promise<string> {
+  const imagesDir = path.join(process.cwd(), "public", "images");
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+
+  const res = await fetch(url);
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const filePath = path.join(imagesDir, filename);
+  fs.writeFileSync(filePath, buffer);
+
+  return `/images/${filename}`;
+}
+
+export async function POST(request: Request) {
+  const body: Phase2Request = await request.json();
+  const { teamId, concepts, userMessage } = body;
+
+  const userContent = `상반된 두 개념: "${concepts[0]}"와 "${concepts[1]}"
+추가 요구사항: ${userMessage}`;
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userContent },
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.8,
+  });
+
+  const raw = completion.choices[0].message.content ?? "{}";
+  const parsed = JSON.parse(raw) as { fusionDescription: string; imagePrompt: string };
+
+  const imageResponse = await openai.images.generate({
+    model: "dall-e-3",
+    prompt: parsed.imagePrompt,
+    n: 1,
+    size: "1024x1024",
+    quality: "standard",
+  });
+
+  const tempUrl = imageResponse.data?.[0]?.url ?? "";
+
+  // DALL-E URL은 1시간 후 만료되므로 로컬에 저장
+  const filename = `${teamId}_${Date.now()}.png`;
+  const localPath = tempUrl ? await downloadImage(tempUrl, filename) : "";
+
+  return Response.json({
+    fusionDescription: parsed.fusionDescription,
+    imageUrl: localPath,
+  });
+}
