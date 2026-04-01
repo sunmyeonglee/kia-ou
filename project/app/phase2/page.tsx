@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import ChatInput from "@/components/ChatInput";
 import ConceptSelector, { ConceptPair } from "@/components/ConceptSelector";
@@ -12,6 +12,7 @@ interface Phase2Result {
 }
 
 function Phase2Content() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const teamId = searchParams.get("teamId") ?? "unknown";
 
@@ -147,10 +148,15 @@ function Phase2Content() {
 
         {/* 빈 상태 안내 */}
         {!loading && !result && pairs.length === 0 && (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            <p className="text-2xl mb-3">⚠️</p>
-            <p>Phase 1을 먼저 완료해주세요.</p>
-            <p className="mt-1">Phase 1에서 생성된 개념 쌍이 여기에 표시됩니다.</p>
+          <div className="text-center py-16 space-y-4">
+            <p className="text-2xl">⚠️</p>
+            <p className="text-sm text-gray-500">Phase 1을 먼저 완료해주세요.</p>
+            <button
+              onClick={() => router.push(`/phase1?teamId=${encodeURIComponent(teamId)}`)}
+              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+            >
+              ← Phase 1으로 돌아가기
+            </button>
           </div>
         )}
       </main>
