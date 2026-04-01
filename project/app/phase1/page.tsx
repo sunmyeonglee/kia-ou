@@ -52,6 +52,7 @@ function Phase1Content() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [history, setHistory] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   // 최신 turns를 ref로 유지해 stale closure 방지
@@ -65,6 +66,7 @@ function Phase1Content() {
   const handleSubmit = async (userMessage: string) => {
     setLoading(true);
     setError("");
+    setPendingMessage(userMessage);
 
     const turnIndex = turns.length;
 
@@ -76,6 +78,7 @@ function Phase1Content() {
 
     if (!res.ok) {
       setError("AI 응답 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setPendingMessage(null);
       setLoading(false);
       return;
     }
@@ -91,6 +94,7 @@ function Phase1Content() {
       logged: false,
     };
 
+    setPendingMessage(null);
     setTurns((prev) => [...prev, newTurn]);
     setHistory((prev) => [
       ...prev,
@@ -180,10 +184,17 @@ function Phase1Content() {
           </div>
         ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-500 animate-pulse">
-              AI가 개념을 생성하고 있습니다...
+        {loading && pendingMessage && (
+          <div className="space-y-3">
+            <div className="flex justify-end">
+              <div className="max-w-xs rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
+                {pendingMessage}
+              </div>
+            </div>
+            <div className="flex justify-start">
+              <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-500 animate-pulse">
+                AI가 개념을 생성하고 있습니다...
+              </div>
             </div>
           </div>
         )}

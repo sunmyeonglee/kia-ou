@@ -1,15 +1,17 @@
-import fs from "fs";
-import path from "path";
-
 export async function register() {
-  const dirs = [
-    path.join(process.cwd(), "data", "logs"),
-    path.join(process.cwd(), "public", "images"),
-  ];
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const fs = await import("fs");
+    const path = await import("path");
 
-  for (const dir of dirs) {
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    const dirs = [
+      path.join(process.cwd(), "data", "logs"),
+      path.join(process.cwd(), "public", "images"),
+    ];
+
+    for (const dir of dirs) {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
     }
   }
 }
