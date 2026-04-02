@@ -55,9 +55,25 @@ function Phase1Content() {
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
-  // 최신 turns를 ref로 유지해 stale closure 방지
   const turnsRef = useRef<Turn[]>([]);
   turnsRef.current = turns;
+
+  // 새로고침 후 복원
+  useEffect(() => {
+    const savedTurns = sessionStorage.getItem(`phase1_turns_${teamId}`);
+    const savedHistory = sessionStorage.getItem(`phase1_history_${teamId}`);
+    if (savedTurns) setTurns(JSON.parse(savedTurns));
+    if (savedHistory) setHistory(JSON.parse(savedHistory));
+  }, [teamId]);
+
+  // turns/history 변경 시 sessionStorage에 저장
+  useEffect(() => {
+    if (turns.length > 0) sessionStorage.setItem(`phase1_turns_${teamId}`, JSON.stringify(turns));
+  }, [turns, teamId]);
+
+  useEffect(() => {
+    if (history.length > 0) sessionStorage.setItem(`phase1_history_${teamId}`, JSON.stringify(history));
+  }, [history, teamId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

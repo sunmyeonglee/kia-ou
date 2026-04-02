@@ -26,14 +26,28 @@ function Phase2Content() {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // 새로고침 후 복원
   useEffect(() => {
-    const stored = sessionStorage.getItem("conceptPairs");
-    if (stored) {
-      const parsed: ConceptPair[] = JSON.parse(stored);
+    const storedPairs = sessionStorage.getItem("conceptPairs");
+    if (storedPairs) {
+      const parsed: ConceptPair[] = JSON.parse(storedPairs);
       setPairs(parsed);
       if (parsed.length > 0) setSelectedPair(parsed[parsed.length - 1]);
     }
-  }, []);
+
+    const storedIterations = sessionStorage.getItem(`phase2_iterations_${teamId}`);
+    if (storedIterations) {
+      const parsed: Iteration[] = JSON.parse(storedIterations);
+      setIterations(parsed);
+      setActiveIndex(parsed.length - 1);
+    }
+  }, [teamId]);
+
+  // iterations 변경 시 sessionStorage에 저장
+  useEffect(() => {
+    if (iterations.length > 0)
+      sessionStorage.setItem(`phase2_iterations_${teamId}`, JSON.stringify(iterations));
+  }, [iterations, teamId]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,7 +66,15 @@ function Phase2Content() {
     const res = await fetch("/api/phase2", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ teamId, concepts: selectedPair.concepts, userMessage }),
+      body: JSON.stringify({
+          teamId,
+          concepts: selectedPair.concepts,
+          userMessage,
+          history: iterations.map((iter) => ({
+            userMessage: iter.userMessage,
+            fusionDescription: iter.fusionDescription,
+          })),
+        }),
     });
 
     if (!res.ok) {
