@@ -1,6 +1,8 @@
 import openai from "@/lib/openai";
 import supabase from "@/lib/supabase";
 
+export const maxDuration = 60;
+
 interface IterationHistory {
   userMessage: string;
   fusionDescription: string;

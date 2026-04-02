@@ -28,21 +28,17 @@ function Phase2Content() {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // teamId 없으면 메인으로 리다이렉트
   useEffect(() => {
     if (!teamId) router.replace("/");
   }, [teamId, router]);
 
-  // 새로고침 후 복원
   useEffect(() => {
     if (!teamId) return;
     const storedPairs = sessionStorage.getItem("conceptPairs");
     if (storedPairs) {
       const parsed: ConceptPair[] = JSON.parse(storedPairs);
       setPairs(parsed);
-      if (parsed.length > 0) setSelectedPair(parsed[parsed.length - 1]);
     }
-
     const storedIterations = sessionStorage.getItem(`phase2_iterations_${storageKey}`);
     if (storedIterations) {
       const parsed: Iteration[] = JSON.parse(storedIterations);
@@ -51,7 +47,6 @@ function Phase2Content() {
     }
   }, [teamId]);
 
-  // iterations 변경 시 sessionStorage에 저장
   useEffect(() => {
     if (iterations.length > 0)
       sessionStorage.setItem(`phase2_iterations_${storageKey}`, JSON.stringify(iterations));
@@ -66,7 +61,6 @@ function Phase2Content() {
       setError("개념 쌍을 선택해주세요.");
       return;
     }
-
     setLoading(true);
     setError("");
     setPendingMessage(userMessage);
@@ -75,14 +69,14 @@ function Phase2Content() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-          teamId,
-          concepts: selectedPair.concepts,
-          userMessage,
-          history: iterations.map((iter) => ({
-            userMessage: iter.userMessage,
-            fusionDescription: iter.fusionDescription,
-          })),
-        }),
+        teamId,
+        concepts: selectedPair.concepts,
+        userMessage,
+        history: iterations.map((iter) => ({
+          userMessage: iter.userMessage,
+          fusionDescription: iter.fusionDescription,
+        })),
+      }),
     });
 
     if (!res.ok) {
@@ -93,7 +87,6 @@ function Phase2Content() {
     }
 
     const data = await res.json() as { fusionDescription: string; imageUrl: string };
-
     setIterations((prev) => {
       const next = [...prev, { userMessage, ...data }];
       setActiveIndex(next.length - 1);
@@ -120,9 +113,88 @@ function Phase2Content() {
     setLoading(false);
   };
 
+  const ImageArea = () => (
+    <div className="flex flex-col bg-gray-100 w-full md:h-full h-[35vh]">
+      {/* 탭 */}
+      {iterations.length > 0 && (
+        <div className="shrink-0 flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-200 overflow-x-auto">
+          {iterations.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveIndex(i)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                activeIndex === i
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-100 text-gray-500 hover:bg-purple-50 hover:text-purple-600"
+              }`}
+            >
+              이미지 {i + 1}
+            </button>
+          ))}
+          {loading && (
+            <div className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 flex items-center gap-1">
+              <div className="w-3 h-3 border-2 border-gray-300 border-t-purple-400 rounded-full animate-spin" />
+              생성 중
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 이미지 */}
+      <div className="flex-1 flex items-center justify-center relative">
+        {!loading && iterations.length === 0 && (
+          <div className="text-center text-gray-300 text-sm">
+            <p className="text-4xl mb-3">🖼️</p>
+            <p>생성된 이미지가 여기에 표시됩니다</p>
+          </div>
+        )}
+        {loading && iterations.length === 0 && (
+          <div className="text-center space-y-3 text-gray-400">
+            <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto" />
+            <p className="text-sm">이미지 생성 중...</p>
+          </div>
+        )}
+        {iterations.length > 0 && iterations[activeIndex]?.imageUrl && (
+          <div className="relative w-full h-full">
+            <Image
+              src={iterations[activeIndex].imageUrl}
+              alt={`이미지 ${activeIndex + 1}`}
+              fill
+              className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            {loading && activeIndex === iterations.length - 1 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+              </div>
+            )}
+            {iterations.length > 1 && (
+              <>
+                <button
+                  onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={activeIndex === 0}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={() => setActiveIndex((prev) => Math.min(iterations.length - 1, prev + 1))}
+                  disabled={activeIndex === iterations.length - 1}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-screen">
-      {/* 상단 헤더 */}
+      {/* 헤더 */}
       <header className="shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 z-10">
         <span className="rounded-full bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1">
           Phase 2
@@ -133,21 +205,24 @@ function Phase2Content() {
       {/* 개념 쌍 선택 */}
       {pairs.length > 0 && (
         <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-4 py-3 z-10">
-          <div className="max-w-7xl mx-auto">
-            <ConceptSelector pairs={pairs} selected={selectedPair} onSelect={setSelectedPair} />
-          </div>
+          <ConceptSelector pairs={pairs} selected={selectedPair} onSelect={setSelectedPair} />
         </div>
       )}
 
-      {/* 메인 좌우 분할 */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* 모바일: 상하 / 데스크탑: 좌우 */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
-        {/* 왼쪽: 대화 영역 */}
-        <div className="flex flex-col w-1/2 border-r border-gray-200">
-          <div className="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+        {/* 모바일에서 이미지 위 */}
+        <div className="md:hidden shrink-0">
+          <ImageArea />
+        </div>
+
+        {/* 대화 영역 */}
+        <div className="flex flex-col flex-1 md:w-1/2 border-r border-gray-200 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
             {pairs.length === 0 && (
-              <div className="text-center py-16 space-y-4">
+              <div className="text-center py-12 space-y-4">
                 <p className="text-2xl">⚠️</p>
                 <p className="text-sm text-gray-500">Phase 1을 먼저 완료해주세요.</p>
                 <button
@@ -160,7 +235,7 @@ function Phase2Content() {
             )}
 
             {pairs.length > 0 && iterations.length === 0 && !loading && (
-              <div className="text-center py-16 text-gray-400 text-sm">
+              <div className="text-center py-12 text-gray-400 text-sm">
                 <p className="text-2xl mb-3">🎨</p>
                 <p>요구사항을 입력하면</p>
                 <p>AI가 두 개념을 결합한 이미지를 생성합니다.</p>
@@ -169,15 +244,13 @@ function Phase2Content() {
 
             {iterations.map((iter, i) => (
               <div key={i} className="space-y-2">
-                {/* 사용자 메시지 */}
                 <div className="flex justify-end">
-                  <div className="max-w-xs rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
                     {iter.userMessage}
                   </div>
                 </div>
-                {/* AI 설명 + 이미지 이동 버튼 */}
                 <div className="flex justify-start">
-                  <div className={`max-w-xs rounded-2xl rounded-tl-sm border px-4 py-3 text-sm leading-relaxed transition-colors ${
+                  <div className={`max-w-[80%] rounded-2xl rounded-tl-sm border px-4 py-3 text-sm leading-relaxed transition-colors ${
                     activeIndex === i
                       ? "bg-purple-50 border-purple-300 text-gray-700"
                       : "bg-white border-gray-200 text-gray-700"
@@ -201,7 +274,7 @@ function Phase2Content() {
             {loading && pendingMessage && (
               <div className="space-y-2">
                 <div className="flex justify-end">
-                  <div className="max-w-xs rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
                     {pendingMessage}
                   </div>
                 </div>
@@ -223,7 +296,6 @@ function Phase2Content() {
             <div ref={bottomRef} />
           </div>
 
-          {/* 하단 입력창 */}
           <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-4">
             <ChatInput
               onSubmit={handleSubmit}
@@ -239,85 +311,9 @@ function Phase2Content() {
           </div>
         </div>
 
-        {/* 오른쪽: 이미지 영역 */}
-        <div className="flex flex-col w-1/2 bg-gray-100">
-          {/* 탭 */}
-          {iterations.length > 0 && (
-            <div className="shrink-0 flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-200 overflow-x-auto">
-              {iterations.map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveIndex(i)}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    activeIndex === i
-                      ? "bg-purple-600 text-white"
-                      : "bg-gray-100 text-gray-500 hover:bg-purple-50 hover:text-purple-600"
-                  }`}
-                >
-                  이미지 {i + 1}
-                </button>
-              ))}
-              {loading && (
-                <div className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 flex items-center gap-1">
-                  <div className="w-3 h-3 border-2 border-gray-300 border-t-purple-400 rounded-full animate-spin" />
-                  생성 중
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 이미지 표시 */}
-          <div className="flex-1 flex items-center justify-center relative">
-            {!loading && iterations.length === 0 && (
-              <div className="text-center text-gray-300 text-sm">
-                <p className="text-5xl mb-4">🖼️</p>
-                <p>생성된 이미지가 여기에 표시됩니다</p>
-              </div>
-            )}
-
-            {loading && iterations.length === 0 && (
-              <div className="text-center space-y-3 text-gray-400">
-                <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto" />
-                <p className="text-sm">이미지 생성 중...</p>
-              </div>
-            )}
-
-            {iterations.length > 0 && iterations[activeIndex]?.imageUrl && (
-              <div className="relative w-full h-full">
-                <Image
-                  src={iterations[activeIndex].imageUrl}
-                  alt={`이미지 ${activeIndex + 1}`}
-                  fill
-                  className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
-                  sizes="50vw"
-                />
-                {loading && activeIndex === iterations.length - 1 && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-                  </div>
-                )}
-                {/* 이전/다음 화살표 */}
-                {iterations.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
-                      disabled={activeIndex === 0}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
-                    >
-                      ‹
-                    </button>
-                    <button
-                      onClick={() => setActiveIndex((prev) => Math.min(iterations.length - 1, prev + 1))}
-                      disabled={activeIndex === iterations.length - 1}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
-                    >
-                      ›
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
+        {/* 데스크탑에서만 오른쪽 이미지 */}
+        <div className="hidden md:flex md:w-1/2">
+          <ImageArea />
         </div>
       </div>
     </div>

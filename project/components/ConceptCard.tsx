@@ -7,7 +7,7 @@ export default function ConceptCard({ concepts, rationale }: ConceptCardProps) {
   return (
     <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 space-y-3">
       <p className="text-sm text-gray-600">{rationale}</p>
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         {concepts.map((concept, i) => (
           <div
             key={i}

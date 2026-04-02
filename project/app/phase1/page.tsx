@@ -189,7 +189,7 @@ function Phase1Content() {
           <div key={turn.turnIndex} className="space-y-3">
             {/* 사용자 메시지 */}
             <div className="flex justify-end">
-              <div className="max-w-xs rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
+              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
                 {turn.userMessage}
               </div>
             </div>
@@ -211,7 +211,7 @@ function Phase1Content() {
         {loading && pendingMessage && (
           <div className="space-y-3">
             <div className="flex justify-end">
-              <div className="max-w-xs rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
+              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
                 {pendingMessage}
               </div>
             </div>
