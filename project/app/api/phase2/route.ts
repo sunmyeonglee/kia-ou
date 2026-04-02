@@ -1,6 +1,5 @@
-import fs from "fs";
-import path from "path";
 import openai from "@/lib/openai";
+import supabase from "@/lib/supabase";
 
 interface Phase2Request {
   teamId: string;
@@ -22,18 +21,21 @@ const SYSTEM_PROMPT = `너는 창의적 개념 결합을 돕는 AI야.
 - imagePrompt는 DALL-E 3에 적합한 상세한 영어 프롬프트로 작성할 것
 - imagePrompt는 두 개념의 시각적 결합이 명확히 드러나도록 구체적으로 작성할 것`;
 
-async function downloadImage(url: string, filename: string): Promise<string> {
-  const imagesDir = path.join(process.cwd(), "public", "images");
-  if (!fs.existsSync(imagesDir)) {
-    fs.mkdirSync(imagesDir, { recursive: true });
-  }
-
-  const res = await fetch(url);
+async function uploadImageToSupabase(tempUrl: string, filename: string): Promise<string> {
+  const res = await fetch(tempUrl);
   const buffer = Buffer.from(await res.arrayBuffer());
-  const filePath = path.join(imagesDir, filename);
-  fs.writeFileSync(filePath, buffer);
 
-  return `/images/${filename}`;
+  const { error } = await supabase.storage
+    .from("generated-images")
+    .upload(filename, buffer, { contentType: "image/png", upsert: false });
+
+  if (error) throw new Error(`Storage upload failed: ${error.message}`);
+
+  const { data } = supabase.storage
+    .from("generated-images")
+    .getPublicUrl(filename);
+
+  return data.publicUrl;
 }
 
 export async function POST(request: Request) {
@@ -65,13 +67,11 @@ export async function POST(request: Request) {
   });
 
   const tempUrl = imageResponse.data?.[0]?.url ?? "";
-
-  // DALL-E URL은 1시간 후 만료되므로 로컬에 저장
   const filename = `${teamId}_${Date.now()}.png`;
-  const localPath = tempUrl ? await downloadImage(tempUrl, filename) : "";
+  const imageUrl = tempUrl ? await uploadImageToSupabase(tempUrl, filename) : "";
 
   return Response.json({
     fusionDescription: parsed.fusionDescription,
-    imageUrl: localPath,
+    imageUrl,
   });
 }

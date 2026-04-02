@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "oaidalleapiprodscus.blob.core.windows.net",
+        hostname: "*.supabase.co",
       },
     ],
   },
