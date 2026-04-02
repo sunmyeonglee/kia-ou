@@ -15,7 +15,12 @@ export default function MainPage() {
       return;
     }
     setError("");
-    router.push(`/phase1?teamId=${encodeURIComponent(trimmed)}`);
+
+    // 고유 세션 ID 생성 — 같은 팀 번호 동시 접속 시 세션 구분
+    const sessionId = crypto.randomUUID();
+    sessionStorage.setItem("sessionId", sessionId);
+
+    router.push(`/phase1?teamId=${encodeURIComponent(trimmed)}&sessionId=${sessionId}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

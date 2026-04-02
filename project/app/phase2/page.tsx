@@ -15,7 +15,9 @@ interface Iteration {
 function Phase2Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const teamId = searchParams.get("teamId") ?? "unknown";
+  const teamId = searchParams.get("teamId") ?? "";
+  const sessionId = searchParams.get("sessionId") ?? sessionStorage.getItem("sessionId") ?? "default";
+  const storageKey = `${teamId}_${sessionId}`;
 
   const [pairs, setPairs] = useState<ConceptPair[]>([]);
   const [selectedPair, setSelectedPair] = useState<ConceptPair | null>(null);
@@ -26,8 +28,14 @@ function Phase2Content() {
   const [error, setError] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // teamId 없으면 메인으로 리다이렉트
+  useEffect(() => {
+    if (!teamId) router.replace("/");
+  }, [teamId, router]);
+
   // 새로고침 후 복원
   useEffect(() => {
+    if (!teamId) return;
     const storedPairs = sessionStorage.getItem("conceptPairs");
     if (storedPairs) {
       const parsed: ConceptPair[] = JSON.parse(storedPairs);
@@ -35,7 +43,7 @@ function Phase2Content() {
       if (parsed.length > 0) setSelectedPair(parsed[parsed.length - 1]);
     }
 
-    const storedIterations = sessionStorage.getItem(`phase2_iterations_${teamId}`);
+    const storedIterations = sessionStorage.getItem(`phase2_iterations_${storageKey}`);
     if (storedIterations) {
       const parsed: Iteration[] = JSON.parse(storedIterations);
       setIterations(parsed);
@@ -46,8 +54,8 @@ function Phase2Content() {
   // iterations 변경 시 sessionStorage에 저장
   useEffect(() => {
     if (iterations.length > 0)
-      sessionStorage.setItem(`phase2_iterations_${teamId}`, JSON.stringify(iterations));
-  }, [iterations, teamId]);
+      sessionStorage.setItem(`phase2_iterations_${storageKey}`, JSON.stringify(iterations));
+  }, [iterations, storageKey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -143,7 +151,7 @@ function Phase2Content() {
                 <p className="text-2xl">⚠️</p>
                 <p className="text-sm text-gray-500">Phase 1을 먼저 완료해주세요.</p>
                 <button
-                  onClick={() => router.push(`/phase1?teamId=${encodeURIComponent(teamId)}`)}
+                  onClick={() => router.push(`/phase1?teamId=${encodeURIComponent(teamId)}&sessionId=${sessionId}`)}
                   className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
                 >
                   ← Phase 1으로 돌아가기

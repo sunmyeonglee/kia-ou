@@ -47,7 +47,9 @@ async function saveLog(teamId: string, turn: Turn, likert: number | null) {
 function Phase1Content() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const teamId = searchParams.get("teamId") ?? "unknown";
+  const teamId = searchParams.get("teamId") ?? "";
+  const sessionId = searchParams.get("sessionId") ?? sessionStorage.getItem("sessionId") ?? "default";
+  const storageKey = `${teamId}_${sessionId}`;
 
   const [turns, setTurns] = useState<Turn[]>([]);
   const [history, setHistory] = useState<Message[]>([]);
@@ -58,22 +60,28 @@ function Phase1Content() {
   const turnsRef = useRef<Turn[]>([]);
   turnsRef.current = turns;
 
+  // teamId 없으면 메인으로 리다이렉트
+  useEffect(() => {
+    if (!teamId) router.replace("/");
+  }, [teamId, router]);
+
   // 새로고침 후 복원
   useEffect(() => {
-    const savedTurns = sessionStorage.getItem(`phase1_turns_${teamId}`);
-    const savedHistory = sessionStorage.getItem(`phase1_history_${teamId}`);
+    if (!teamId) return;
+    const savedTurns = sessionStorage.getItem(`phase1_turns_${storageKey}`);
+    const savedHistory = sessionStorage.getItem(`phase1_history_${storageKey}`);
     if (savedTurns) setTurns(JSON.parse(savedTurns));
     if (savedHistory) setHistory(JSON.parse(savedHistory));
-  }, [teamId]);
+  }, [storageKey, teamId]);
 
   // turns/history 변경 시 sessionStorage에 저장
   useEffect(() => {
-    if (turns.length > 0) sessionStorage.setItem(`phase1_turns_${teamId}`, JSON.stringify(turns));
-  }, [turns, teamId]);
+    if (turns.length > 0) sessionStorage.setItem(`phase1_turns_${storageKey}`, JSON.stringify(turns));
+  }, [turns, storageKey]);
 
   useEffect(() => {
-    if (history.length > 0) sessionStorage.setItem(`phase1_history_${teamId}`, JSON.stringify(history));
-  }, [history, teamId]);
+    if (history.length > 0) sessionStorage.setItem(`phase1_history_${storageKey}`, JSON.stringify(history));
+  }, [history, storageKey]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,7 +153,7 @@ function Phase1Content() {
       turnIndex: t.turnIndex,
     }));
     sessionStorage.setItem("conceptPairs", JSON.stringify(pairs));
-    router.push(`/phase2?teamId=${encodeURIComponent(teamId)}`);
+    router.push(`/phase2?teamId=${encodeURIComponent(teamId)}&sessionId=${sessionId}`);
   };
 
   return (
