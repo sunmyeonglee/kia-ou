@@ -45,7 +45,7 @@ export default function MainPage() {
             onChange={(e) => setTeamId(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="예: A1, B3"
-            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <button

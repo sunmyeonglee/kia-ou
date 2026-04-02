@@ -28,7 +28,7 @@ export default function ChatInput({ onSubmit, disabled = false, placeholder = "ë
   return (
     <div className="flex items-end gap-2 w-full">
       <textarea
-        className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
         rows={2}
         value={value}
         onChange={(e) => setValue(e.target.value)}
