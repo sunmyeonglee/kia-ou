@@ -88,7 +88,8 @@ export async function POST(request: Request) {
   });
 
   const tempUrl = imageResponse.data?.[0]?.url ?? "";
-  const filename = `${teamId}_${Date.now()}.png`;
+  const safeTeamId = teamId.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const filename = `${safeTeamId}_${Date.now()}.png`;
   const imageUrl = tempUrl ? await uploadImageToSupabase(tempUrl, filename) : "";
 
   return Response.json({
