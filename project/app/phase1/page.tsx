@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import ChatInput from "@/components/ChatInput";
 import LikertScale from "@/components/LikertScale";
 import ConceptCard from "@/components/ConceptCard";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MessageCircle, ArrowRight } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -129,24 +134,18 @@ function Phase1Content() {
     setLoading(false);
   };
 
-  const handleLikert = async (turnIndex: number, value: number) => {
-    // ref에서 최신 turns를 읽어 stale closure 방지
-    const turn = turnsRef.current.find((t) => t.turnIndex === turnIndex);
-    if (!turn || turn.logged) return;
-
+  const handleLikert = (turnIndex: number, value: number) => {
     setTurns((prev) =>
       prev.map((t) =>
-        t.turnIndex === turnIndex ? { ...t, likert: value, logged: true } : t
+        t.turnIndex === turnIndex ? { ...t, likert: value } : t
       )
     );
-
-    await saveLog(teamId, turn, value);
   };
 
   const handleGoToPhase2 = async () => {
-    // 미평가(logged=false) 턴은 likert=null로 일괄 저장
+    // Phase 2 이동 시 모든 턴 일괄 저장
     const unlogged = turnsRef.current.filter((t) => !t.logged);
-    await Promise.all(unlogged.map((t) => saveLog(teamId, t, null)));
+    await Promise.all(unlogged.map((t) => saveLog(teamId, t, t.likert)));
 
     const pairs: ConceptPair[] = turnsRef.current.map((t) => ({
       concepts: t.concepts,
@@ -159,27 +158,25 @@ function Phase1Content() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* 상단 헤더 */}
-      <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="rounded-full bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1">
-            Phase 1
-          </span>
-          <span className="text-sm text-gray-500">팀 {teamId}</span>
+          <Badge variant="secondary">Phase 1</Badge>
+          <span className="text-sm text-muted-foreground">팀 {teamId}</span>
         </div>
-        <button
+        <Button
           onClick={handleGoToPhase2}
-          disabled={turns.length === 0}
-          className="rounded-xl bg-green-600 px-4 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          disabled={turns.length === 0 || loading}
+          size="sm"
         >
-          Phase 2로 이동 →
-        </button>
+          Phase 2로 이동 <ArrowRight className="size-4" />
+        </Button>
       </header>
 
       {/* 대화 영역 */}
       <main className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
         {turns.length === 0 && !loading && (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            <p className="text-2xl mb-3">💭</p>
+          <div className="text-center py-16 text-muted-foreground text-sm">
+            <MessageCircle className="mx-auto mb-3 size-8 opacity-40" />
             <p>요구사항을 입력하면 AI가 상반된 두 개념을 제안합니다.</p>
             <p className="mt-1">예: "환경과 기술에 대한 상반된 개념을 찾고 싶어"</p>
           </div>
@@ -187,21 +184,17 @@ function Phase1Content() {
 
         {turns.map((turn) => (
           <div key={turn.turnIndex} className="space-y-3">
-            {/* 사용자 메시지 */}
             <div className="flex justify-end">
-              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
+              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
                 {turn.userMessage}
               </div>
             </div>
-
-            {/* AI 응답 */}
             <div className="flex justify-start">
               <div className="max-w-lg w-full">
                 <ConceptCard concepts={turn.concepts} rationale={turn.rationale} />
                 <LikertScale
                   onSelect={(val) => handleLikert(turn.turnIndex, val)}
                   selected={turn.likert}
-                  disabled={turn.logged}
                 />
               </div>
             </div>
@@ -211,34 +204,36 @@ function Phase1Content() {
         {loading && pendingMessage && (
           <div className="space-y-3">
             <div className="flex justify-end">
-              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-3 text-sm text-white">
+              <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
                 {pendingMessage}
               </div>
             </div>
             <div className="flex justify-start">
-              <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-500 animate-pulse">
-                AI가 개념을 생성하고 있습니다...
+              <div className="max-w-lg w-full space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-16 w-full" />
               </div>
             </div>
           </div>
         )}
 
         {error && (
-          <div className="text-center text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">
-            {error}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         <div ref={bottomRef} />
       </main>
 
       {/* 하단 입력창 */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 py-4">
+      <div className="sticky bottom-0 bg-background border-t border-border px-4 py-4">
         <div className="max-w-2xl mx-auto">
           <ChatInput
             onSubmit={handleSubmit}
             disabled={loading}
-            placeholder="요구사항을 입력하세요... (Enter로 전송)"
+            placeholder="요구사항을 입력하세요..."
           />
         </div>
       </div>

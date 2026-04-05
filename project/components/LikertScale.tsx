@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 interface LikertScaleProps {
   onSelect: (value: number) => void;
   selected: number | null;
@@ -17,29 +19,23 @@ const LABELS: Record<number, string> = {
 export default function LikertScale({ onSelect, selected, disabled = false }: LikertScaleProps) {
   return (
     <div className="mt-3">
-      <p className="text-xs text-gray-500 mb-2">이 응답에 대한 만족도를 선택해주세요</p>
-      <div className="flex gap-2">
+      <p className="text-xs text-muted-foreground mb-2">이 응답에 대한 만족도를 선택해주세요</p>
+      <div className="flex gap-1.5">
         {[1, 2, 3, 4, 5].map((val) => (
-          <button
+          <Button
             key={val}
             title={LABELS[val]}
             onClick={() => !disabled && onSelect(val)}
             disabled={disabled}
-            className={`w-9 h-9 rounded-full text-sm font-semibold border-2 transition-all
-              ${
-                selected === val
-                  ? "bg-blue-600 border-blue-600 text-white"
-                  : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
-              }
-              ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
-            `}
+            variant={selected === val ? "default" : "outline"}
+            size="icon"
           >
             {val}
-          </button>
+          </Button>
         ))}
       </div>
       {selected !== null && (
-        <p className="text-xs text-blue-600 mt-1">{LABELS[selected!]} ({selected}점)</p>
+        <p className="text-xs text-muted-foreground mt-1">{LABELS[selected!]} ({selected}점)</p>
       )}
     </div>
   );

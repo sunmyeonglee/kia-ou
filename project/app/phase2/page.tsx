@@ -5,11 +5,103 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import ChatInput from "@/components/ChatInput";
 import ConceptSelector, { ConceptPair } from "@/components/ConceptSelector";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ImageIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
 
 interface Iteration {
   userMessage: string;
   fusionDescription: string;
   imageUrl: string;
+}
+
+interface ImageAreaProps {
+  iterations: Iteration[];
+  activeIndex: number;
+  setActiveIndex: React.Dispatch<React.SetStateAction<number>>;
+  loading: boolean;
+}
+
+function ImageArea({ iterations, activeIndex, setActiveIndex, loading }: ImageAreaProps) {
+  return (
+    <div className="flex flex-col bg-muted/30 w-full md:h-full h-[35vh]">
+      {iterations.length > 0 && (
+        <div className="shrink-0 flex items-center gap-1 px-3 py-2 bg-background border-b border-border overflow-x-auto">
+          {iterations.map((_, i) => (
+            <Button
+              key={i}
+              onClick={() => setActiveIndex(i)}
+              variant={activeIndex === i ? "default" : "ghost"}
+              size="xs"
+              className="shrink-0"
+            >
+              이미지 {i + 1}
+            </Button>
+          ))}
+          {loading && (
+            <div className="shrink-0 px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+              <div className="w-3 h-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+              생성 중
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex-1 flex items-center justify-center relative">
+        {!loading && iterations.length === 0 && (
+          <div className="text-center text-muted-foreground/50 text-sm">
+            <ImageIcon className="mx-auto mb-3 size-8 opacity-30" />
+            <p>생성된 이미지가 여기에 표시됩니다</p>
+          </div>
+        )}
+        {loading && iterations.length === 0 && (
+          <div className="text-center space-y-3 text-muted-foreground">
+            <div className="w-10 h-10 border-4 border-muted border-t-foreground rounded-full animate-spin mx-auto" />
+            <p className="text-sm">이미지 생성 중...</p>
+          </div>
+        )}
+        {iterations.length > 0 && iterations[activeIndex]?.imageUrl && (
+          <div className="relative w-full h-full">
+            <Image
+              src={iterations[activeIndex].imageUrl}
+              alt={`이미지 ${activeIndex + 1}`}
+              fill
+              className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            {loading && activeIndex === iterations.length - 1 && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-muted border-t-foreground rounded-full animate-spin" />
+              </div>
+            )}
+            {iterations.length > 1 && (
+              <>
+                <Button
+                  onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={activeIndex === 0}
+                  variant="outline"
+                  size="icon"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button
+                  onClick={() => setActiveIndex((prev) => Math.min(iterations.length - 1, prev + 1))}
+                  disabled={activeIndex === iterations.length - 1}
+                  variant="outline"
+                  size="icon"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function Phase2Content() {
@@ -21,6 +113,7 @@ function Phase2Content() {
 
   const [pairs, setPairs] = useState<ConceptPair[]>([]);
   const [selectedPair, setSelectedPair] = useState<ConceptPair | null>(null);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const [iterations, setIterations] = useState<Iteration[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
@@ -45,7 +138,7 @@ function Phase2Content() {
       setIterations(parsed);
       setActiveIndex(parsed.length - 1);
     }
-  }, [teamId]);
+  }, [teamId, storageKey]);
 
   useEffect(() => {
     if (iterations.length > 0)
@@ -94,149 +187,84 @@ function Phase2Content() {
     });
     setPendingMessage(null);
 
-    await fetch("/api/log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        phase: 2,
-        data: {
-          teamId,
-          selectedConcept1: selectedPair.concepts[0],
-          selectedConcept2: selectedPair.concepts[1],
-          userMessage,
-          fusionDescription: data.fusionDescription,
-          imageUrl: data.imageUrl,
-        },
-      }),
-    });
-
-    setLoading(false);
+    try {
+      await fetch("/api/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phase: 2,
+          data: {
+            teamId,
+            selectedConcept1: selectedPair.concepts[0],
+            selectedConcept2: selectedPair.concepts[1],
+            userMessage,
+            fusionDescription: data.fusionDescription,
+            imageUrl: data.imageUrl,
+          },
+        }),
+      });
+    } finally {
+      setLoading(false);
+    }
   };
-
-  const ImageArea = () => (
-    <div className="flex flex-col bg-gray-100 w-full md:h-full h-[35vh]">
-      {/* 탭 */}
-      {iterations.length > 0 && (
-        <div className="shrink-0 flex items-center gap-1 px-3 py-2 bg-white border-b border-gray-200 overflow-x-auto">
-          {iterations.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveIndex(i)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                activeIndex === i
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-500 hover:bg-purple-50 hover:text-purple-600"
-              }`}
-            >
-              이미지 {i + 1}
-            </button>
-          ))}
-          {loading && (
-            <div className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-400 flex items-center gap-1">
-              <div className="w-3 h-3 border-2 border-gray-300 border-t-purple-400 rounded-full animate-spin" />
-              생성 중
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* 이미지 */}
-      <div className="flex-1 flex items-center justify-center relative">
-        {!loading && iterations.length === 0 && (
-          <div className="text-center text-gray-300 text-sm">
-            <p className="text-4xl mb-3">🖼️</p>
-            <p>생성된 이미지가 여기에 표시됩니다</p>
-          </div>
-        )}
-        {loading && iterations.length === 0 && (
-          <div className="text-center space-y-3 text-gray-400">
-            <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mx-auto" />
-            <p className="text-sm">이미지 생성 중...</p>
-          </div>
-        )}
-        {iterations.length > 0 && iterations[activeIndex]?.imageUrl && (
-          <div className="relative w-full h-full">
-            <Image
-              src={iterations[activeIndex].imageUrl}
-              alt={`이미지 ${activeIndex + 1}`}
-              fill
-              className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
-            {loading && activeIndex === iterations.length - 1 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-10 h-10 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-              </div>
-            )}
-            {iterations.length > 1 && (
-              <>
-                <button
-                  onClick={() => setActiveIndex((prev) => Math.max(0, prev - 1))}
-                  disabled={activeIndex === 0}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={() => setActiveIndex((prev) => Math.min(iterations.length - 1, prev + 1))}
-                  disabled={activeIndex === iterations.length - 1}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 shadow flex items-center justify-center text-gray-600 hover:bg-white disabled:opacity-30 transition-all"
-                >
-                  ›
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="flex flex-col h-screen">
       {/* 헤더 */}
-      <header className="shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 z-10">
-        <span className="rounded-full bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1">
-          Phase 2
-        </span>
-        <span className="text-sm text-gray-500">팀 {teamId}</span>
+      <header className="relative shrink-0 bg-background border-b border-border px-4 py-3 flex items-center gap-3 z-20">
+        <Badge variant="secondary">Phase 2</Badge>
+        <span className="text-sm text-muted-foreground">팀 {teamId}</span>
+        {pairs.length > 0 && (
+          <Button
+            variant={selectedPair ? "outline" : "default"}
+            size="sm"
+            className="ml-auto max-w-50 truncate"
+            onClick={() => setSelectorOpen((v) => !v)}
+          >
+            {selectedPair
+              ? `${selectedPair.concepts[0]} ↔ ${selectedPair.concepts[1]}`
+              : <><ChevronDown className="size-3.5" />개념 쌍 선택</>}
+          </Button>
+        )}
+        {selectorOpen && (
+          <div className="absolute top-full left-0 right-0 bg-background border-b border-border px-4 py-3 shadow-sm z-10">
+            <ConceptSelector
+              pairs={pairs}
+              selected={selectedPair}
+              onSelect={setSelectedPair}
+              onClose={() => setSelectorOpen(false)}
+            />
+          </div>
+        )}
       </header>
-
-      {/* 개념 쌍 선택 */}
-      {pairs.length > 0 && (
-        <div className="shrink-0 bg-gray-50 border-b border-gray-200 px-4 py-3 z-10">
-          <ConceptSelector pairs={pairs} selected={selectedPair} onSelect={setSelectedPair} />
-        </div>
-      )}
 
       {/* 모바일: 상하 / 데스크탑: 좌우 */}
       <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
         {/* 모바일에서 이미지 위 */}
         <div className="md:hidden shrink-0">
-          <ImageArea />
+          <ImageArea iterations={iterations} activeIndex={activeIndex} setActiveIndex={setActiveIndex} loading={loading} />
         </div>
 
         {/* 대화 영역 */}
-        <div className="flex flex-col flex-1 md:w-1/2 border-r border-gray-200 overflow-hidden">
+        <div className="flex flex-col flex-1 md:w-1/2 border-r border-border overflow-hidden">
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
 
             {pairs.length === 0 && (
               <div className="text-center py-12 space-y-4">
-                <p className="text-2xl">⚠️</p>
-                <p className="text-sm text-gray-500">Phase 1을 먼저 완료해주세요.</p>
-                <button
+                <p className="text-sm text-muted-foreground">Phase 1을 먼저 완료해주세요.</p>
+                <Button
                   onClick={() => router.push(`/phase1?teamId=${encodeURIComponent(teamId)}&sessionId=${sessionId}`)}
-                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors"
+                  variant="outline"
+                  size="sm"
                 >
                   ← Phase 1으로 돌아가기
-                </button>
+                </Button>
               </div>
             )}
 
             {pairs.length > 0 && iterations.length === 0 && !loading && (
-              <div className="text-center py-12 text-gray-400 text-sm">
-                <p className="text-2xl mb-3">🎨</p>
+              <div className="text-center py-12 text-muted-foreground text-sm space-y-1">
                 <p>요구사항을 입력하면</p>
                 <p>AI가 두 개념을 결합한 이미지를 생성합니다.</p>
               </div>
@@ -245,27 +273,23 @@ function Phase2Content() {
             {iterations.map((iter, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
                     {iter.userMessage}
                   </div>
                 </div>
                 <div className="flex justify-start">
                   <div className={`max-w-[80%] rounded-2xl rounded-tl-sm border px-4 py-3 text-sm leading-relaxed transition-colors ${
-                    activeIndex === i
-                      ? "bg-purple-50 border-purple-300 text-gray-700"
-                      : "bg-white border-gray-200 text-gray-700"
+                    activeIndex === i ? "bg-muted border-border" : "bg-background border-border"
                   }`}>
                     <p>{iter.fusionDescription}</p>
-                    <button
+                    <Button
                       onClick={() => setActiveIndex(i)}
-                      className={`mt-2 text-xs font-semibold px-3 py-1 rounded-full transition-colors ${
-                        activeIndex === i
-                          ? "bg-purple-600 text-white"
-                          : "bg-gray-100 text-purple-600 hover:bg-purple-100"
-                      }`}
+                      variant={activeIndex === i ? "default" : "secondary"}
+                      size="xs"
+                      className="mt-2"
                     >
                       {activeIndex === i ? "현재 표시 중" : `이미지 ${i + 1} 보기 →`}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -274,46 +298,54 @@ function Phase2Content() {
             {loading && pendingMessage && (
               <div className="space-y-2">
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-purple-600 px-4 py-3 text-sm text-white">
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
                     {pendingMessage}
                   </div>
                 </div>
                 <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
-                    <span>이미지 생성 중...</span>
+                  <div className="w-full space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
                   </div>
                 </div>
               </div>
             )}
 
             {error && (
-              <div className="text-center text-sm text-red-500 bg-red-50 rounded-xl px-4 py-3">
-                {error}
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
 
             <div ref={bottomRef} />
           </div>
 
-          <div className="shrink-0 border-t border-gray-200 bg-white px-4 py-4">
-            <ChatInput
-              onSubmit={handleSubmit}
-              disabled={loading || !selectedPair}
-              placeholder={
-                !selectedPair
-                  ? "위에서 개념 쌍을 먼저 선택해주세요"
-                  : iterations.length === 0
-                  ? "두 개념을 어떻게 결합할지 입력하세요..."
-                  : "이미지를 수정할 요구사항을 입력하세요..."
-              }
-            />
-          </div>
+          {!selectedPair ? (
+            <div className="shrink-0 border-t border-border bg-background px-4 py-6 flex flex-col items-center gap-3">
+              <p className="text-sm text-muted-foreground">개념 쌍을 먼저 선택해주세요</p>
+              <Button variant="outline" size="sm" onClick={() => setSelectorOpen(true)}>
+                개념 쌍 선택하기 <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="shrink-0 border-t border-border bg-background px-4 py-4">
+              <ChatInput
+                onSubmit={handleSubmit}
+                disabled={loading}
+                placeholder={
+                  iterations.length === 0
+                    ? "두 개념을 어떻게 결합할지 입력하세요..."
+                    : "이미지를 수정할 요구사항을 입력하세요..."
+                }
+              />
+            </div>
+          )}
         </div>
 
         {/* 데스크탑에서만 오른쪽 이미지 */}
         <div className="hidden md:flex md:w-1/2">
-          <ImageArea />
+          <ImageArea iterations={iterations} activeIndex={activeIndex} setActiveIndex={setActiveIndex} loading={loading} />
         </div>
       </div>
     </div>
