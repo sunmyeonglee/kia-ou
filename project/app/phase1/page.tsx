@@ -156,7 +156,7 @@ function Phase1Content() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-dvh">
       {/* 상단 헤더 */}
       <header className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">

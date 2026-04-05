@@ -209,7 +209,7 @@ function Phase2Content() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-dvh">
       {/* 헤더 */}
       <header className="relative shrink-0 bg-background border-b border-border px-4 py-3 flex items-center gap-3 z-20">
         <Badge variant="secondary">Phase 2</Badge>

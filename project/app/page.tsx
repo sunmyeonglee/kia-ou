@@ -66,7 +66,7 @@ export default function MainPage() {
             </Field>
             <Button onClick={handleStart} className="w-full" size="lg">
               실험 시작 <ArrowRight className="size-4" />
-</Button>
+            </Button>
           </CardContent>
         </Card>
       </div>
