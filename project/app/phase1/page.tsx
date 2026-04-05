@@ -61,6 +61,7 @@ function Phase1Content() {
   const [loading, setLoading] = useState(false);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
   const [error, setError] = useState("");
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const turnsRef = useRef<Turn[]>([]);
   turnsRef.current = turns;
@@ -142,10 +143,19 @@ function Phase1Content() {
     );
   };
 
+  const savingRef = useRef(false);
+
   const handleGoToPhase2 = async () => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+
     // Phase 2 이동 시 모든 턴 일괄 저장
     const unlogged = turnsRef.current.filter((t) => !t.logged);
     await Promise.all(unlogged.map((t) => saveLog(teamId, t, t.likert)));
+
+    // logged 상태를 sessionStorage에 반영해 뒤로가기 후 중복 저장 방지
+    const loggedTurns = turnsRef.current.map((t) => ({ ...t, logged: true }));
+    sessionStorage.setItem(`phase1_turns_${storageKey}`, JSON.stringify(loggedTurns));
 
     const pairs: ConceptPair[] = turnsRef.current.map((t) => ({
       concepts: t.concepts,
