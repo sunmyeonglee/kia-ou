@@ -22,7 +22,6 @@ interface Turn {
   concepts: [string, string];
   likert: number | null;
   turnIndex: number;
-  logged: boolean; // likert 선택 후 로그 저장 여부
 }
 
 export interface ConceptPair {
@@ -121,7 +120,6 @@ function Phase1Content() {
       concepts: data.concepts,
       likert: null,
       turnIndex,
-      logged: false,
     };
 
     setPendingMessage(null);
@@ -132,6 +130,9 @@ function Phase1Content() {
       { role: "assistant", content: `근거: ${data.rationale}\n개념: ${data.concepts[0]}, ${data.concepts[1]}` },
     ]);
 
+    // turn 생성 즉시 로그 (likert: null)
+    saveLog(teamId, newTurn, null);
+
     setLoading(false);
   };
 
@@ -141,22 +142,12 @@ function Phase1Content() {
         t.turnIndex === turnIndex ? { ...t, likert: value } : t
       )
     );
+    // Likert 선택 즉시 upsert
+    const turn = turnsRef.current.find((t) => t.turnIndex === turnIndex);
+    if (turn) saveLog(teamId, turn, value);
   };
 
-  const savingRef = useRef(false);
-
-  const handleGoToPhase2 = async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-
-    // Phase 2 이동 시 모든 턴 일괄 저장
-    const unlogged = turnsRef.current.filter((t) => !t.logged);
-    await Promise.all(unlogged.map((t) => saveLog(teamId, t, t.likert)));
-
-    // logged 상태를 sessionStorage에 반영해 뒤로가기 후 중복 저장 방지
-    const loggedTurns = turnsRef.current.map((t) => ({ ...t, logged: true }));
-    sessionStorage.setItem(`phase1_turns_${storageKey}`, JSON.stringify(loggedTurns));
-
+  const handleGoToPhase2 = () => {
     const pairs: ConceptPair[] = turnsRef.current.map((t) => ({
       concepts: t.concepts,
       turnIndex: t.turnIndex,

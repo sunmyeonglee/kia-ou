@@ -5,16 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import ChatInput from "@/components/ChatInput";
 import ConceptSelector, { ConceptPair } from "@/components/ConceptSelector";
+import LikertScale from "@/components/LikertScale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageIcon, ChevronDown, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 interface Iteration {
   userMessage: string;
   fusionDescription: string;
   imageUrl: string;
+  attachedImageUrls: string[];
+  likert: number | null;
 }
 
 interface ImageAreaProps {
@@ -117,8 +121,10 @@ function Phase2Content() {
   const [iterations, setIterations] = useState<Iteration[]>([]);
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const [pendingMessage, setPendingMessage] = useState<string | null>(null);
+  const [pendingPreviews, setPendingPreviews] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,14 +155,29 @@ function Phase2Content() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [iterations, loading]);
 
-  const handleSubmit = async (userMessage: string) => {
+  const handleSubmit = async (userMessage: string, files?: File[]) => {
     if (!selectedPair) {
       setError("개념 쌍을 선택해주세요.");
       return;
     }
+    const iterationIndex = iterations.length;
     setLoading(true);
     setError("");
     setPendingMessage(userMessage);
+    setPendingPreviews((files ?? []).map((f) => URL.createObjectURL(f)));
+
+    const images = await Promise.all(
+      (files ?? []).map((f) => new Promise<{ base64: string; mimeType: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = reader.result as string;
+          const base64 = dataUrl.split(",")[1];
+          resolve({ base64, mimeType: f.type });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(f);
+      }))
+    );
 
     const res = await fetch("/api/phase2", {
       method: "POST",
@@ -169,6 +190,7 @@ function Phase2Content() {
           userMessage: iter.userMessage,
           fusionDescription: iter.fusionDescription,
         })),
+        images,
       }),
     });
 
@@ -179,13 +201,14 @@ function Phase2Content() {
       return;
     }
 
-    const data = await res.json() as { fusionDescription: string; imageUrl: string };
+    const data = await res.json() as { fusionDescription: string; imageUrl: string; attachedImageUrls: string[] };
     setIterations((prev) => {
-      const next = [...prev, { userMessage, ...data }];
+      const next = [...prev, { userMessage, ...data, likert: null }];
       setActiveIndex(next.length - 1);
       return next;
     });
     setPendingMessage(null);
+    setPendingPreviews([]);
 
     try {
       await fetch("/api/log", {
@@ -195,17 +218,46 @@ function Phase2Content() {
           phase: 2,
           data: {
             teamId,
+            iterationIndex,
             selectedConcept1: selectedPair.concepts[0],
             selectedConcept2: selectedPair.concepts[1],
             userMessage,
             fusionDescription: data.fusionDescription,
             imageUrl: data.imageUrl,
+            attachedImageUrls: data.attachedImageUrls,
+            likert: null,
           },
         }),
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLikert = (iterationIndex: number, value: number) => {
+    setIterations((prev) =>
+      prev.map((it, i) => i === iterationIndex ? { ...it, likert: value } : it)
+    );
+    const iter = iterations[iterationIndex];
+    if (!iter || !selectedPair) return;
+    fetch("/api/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        phase: 2,
+        data: {
+          teamId,
+          iterationIndex,
+          selectedConcept1: selectedPair.concepts[0],
+          selectedConcept2: selectedPair.concepts[1],
+          userMessage: iter.userMessage,
+          fusionDescription: iter.fusionDescription,
+          imageUrl: iter.imageUrl,
+          attachedImageUrls: iter.attachedImageUrls,
+          likert: value,
+        },
+      }),
+    });
   };
 
   return (
@@ -273,8 +325,22 @@ function Phase2Content() {
             {iterations.map((iter, i) => (
               <div key={i} className="space-y-2">
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
-                    {iter.userMessage}
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm space-y-2">
+                    <p>{iter.userMessage}</p>
+                    {iter.attachedImageUrls?.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {iter.attachedImageUrls.map((url, j) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={j}
+                            src={url}
+                            alt={`첨부 이미지 ${j + 1}`}
+                            onClick={() => setLightbox(url)}
+                            className="w-20 h-20 object-cover rounded-md cursor-pointer"
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-start">
@@ -292,14 +358,26 @@ function Phase2Content() {
                     </Button>
                   </div>
                 </div>
+                <LikertScale
+                  selected={iter.likert}
+                  onSelect={(val) => handleLikert(i, val)}
+                />
               </div>
             ))}
 
             {loading && pendingMessage && (
               <div className="space-y-2">
                 <div className="flex justify-end">
-                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm">
-                    {pendingMessage}
+                  <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-3 text-sm space-y-2">
+                    <p>{pendingMessage}</p>
+                    {pendingPreviews.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {pendingPreviews.map((url, j) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={j} src={url} alt="" className="w-20 h-20 object-cover rounded-md cursor-pointer" onClick={() => setLightbox(url)} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex justify-start">
@@ -324,7 +402,7 @@ function Phase2Content() {
           {!selectedPair ? (
             <div className="shrink-0 border-t border-border bg-background px-4 py-6 flex flex-col items-center gap-3">
               <p className="text-sm text-muted-foreground">개념 쌍을 먼저 선택해주세요</p>
-              <Button variant="outline" size="sm" onClick={() => setSelectorOpen(true)}>
+              <Button variant="default" size="sm" onClick={() => setSelectorOpen(true)}>
                 개념 쌍 선택하기 <ArrowRight className="size-4" />
               </Button>
             </div>
@@ -333,6 +411,7 @@ function Phase2Content() {
               <ChatInput
                 onSubmit={handleSubmit}
                 disabled={loading}
+                allowFiles
                 placeholder={
                   iterations.length === 0
                     ? "두 개념을 어떻게 결합할지 입력하세요..."
@@ -348,6 +427,13 @@ function Phase2Content() {
           <ImageArea iterations={iterations} activeIndex={activeIndex} setActiveIndex={setActiveIndex} loading={loading} />
         </div>
       </div>
+
+      <Dialog open={!!lightbox} onOpenChange={(open) => !open && setLightbox(null)}>
+        <DialogContent className="max-w-lg flex flex-col items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {lightbox && <img src={lightbox} alt="첨부 이미지" className="max-h-[70vh] w-auto rounded-md object-contain" />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
