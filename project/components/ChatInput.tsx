@@ -28,6 +28,8 @@ export default function ChatInput({
   const [value, setValue] = useState("");
   const [files, setFiles] = useState<{ file: File; preview: string }[]>([]);
   const [lightbox, setLightbox] = useState<{ preview: string; name: string } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounterRef = useRef(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -71,6 +73,36 @@ export default function ChatInput({
     e.target.value = "";
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    if (!allowFiles) return;
+    e.preventDefault();
+    dragCounterRef.current += 1;
+    if (dragCounterRef.current === 1) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!allowFiles) return;
+    e.preventDefault();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current === 0) setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!allowFiles) return;
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    if (!allowFiles) return;
+    e.preventDefault();
+    dragCounterRef.current = 0;
+    setIsDragging(false);
+    const imageFiles = Array.from(e.dataTransfer.files).filter((f) =>
+      f.type.startsWith("image/")
+    );
+    if (imageFiles.length > 0) addFiles(imageFiles);
+  };
+
   const handlePaste = (e: React.ClipboardEvent) => {
     if (!allowFiles) return;
     const imageFiles = Array.from(e.clipboardData.items)
@@ -82,7 +114,16 @@ export default function ChatInput({
 
   return (
     <>
-      <InputGroup onClick={() => textareaRef.current?.focus()} onPaste={handlePaste}>
+      <InputGroup
+        onClick={() => textareaRef.current?.focus()}
+        onPaste={handlePaste}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        data-dragging={isDragging || undefined}
+        className={isDragging ? "ring-2 ring-primary ring-inset" : undefined}
+      >
         {files.length > 0 && (
           <div className="px-3 pt-2 flex flex-wrap gap-2 justify-start w-full">
             {files.map((f, i) => (
