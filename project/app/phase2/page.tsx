@@ -16,6 +16,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 interface Iteration {
   userMessage: string;
   fusionDescription: string;
+  imagePrompt?: string;
   imageUrl: string;
   attachedImageUrls: string[];
   likert: number | null;
@@ -67,13 +68,16 @@ function ImageArea({ iterations, activeIndex, setActiveIndex, loading }: ImageAr
         )}
         {iterations.length > 0 && iterations[activeIndex]?.imageUrl && (
           <div className="relative w-full h-full">
-            <Image
-              src={iterations[activeIndex].imageUrl}
-              alt={`이미지 ${activeIndex + 1}`}
-              fill
-              className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
-              sizes="(max-width: 768px) 100vw, 50vw"
-            />
+            <div className="absolute inset-0 pointer-events-none">
+              <Image
+                src={iterations[activeIndex].imageUrl}
+                alt={`이미지 ${activeIndex + 1}`}
+                fill
+                loading="eager"
+                className={`object-contain transition-opacity duration-300 ${loading && activeIndex === iterations.length - 1 ? "opacity-40" : "opacity-100"}`}
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
+            </div>
             {loading && activeIndex === iterations.length - 1 && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-10 h-10 border-4 border-muted border-t-foreground rounded-full animate-spin" />
@@ -86,7 +90,7 @@ function ImageArea({ iterations, activeIndex, setActiveIndex, loading }: ImageAr
                   disabled={activeIndex === 0}
                   variant="outline"
                   size="icon"
-                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow z-10"
                 >
                   <ChevronLeft className="size-4" />
                 </Button>
@@ -95,7 +99,7 @@ function ImageArea({ iterations, activeIndex, setActiveIndex, loading }: ImageAr
                   disabled={activeIndex === iterations.length - 1}
                   variant="outline"
                   size="icon"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-background/80 shadow z-10"
                 >
                   <ChevronRight className="size-4" />
                 </Button>
@@ -189,6 +193,7 @@ function Phase2Content() {
         history: iterations.map((iter) => ({
           userMessage: iter.userMessage,
           fusionDescription: iter.fusionDescription,
+          imagePrompt: iter.imagePrompt,
         })),
         images,
       }),
@@ -201,7 +206,7 @@ function Phase2Content() {
       return;
     }
 
-    const data = await res.json() as { fusionDescription: string; imageUrl: string; attachedImageUrls: string[] };
+    const data = await res.json() as { fusionDescription: string; imagePrompt: string; imageUrl: string; attachedImageUrls: string[] };
     setIterations((prev) => {
       const next = [...prev, { userMessage, ...data, likert: null }];
       setActiveIndex(next.length - 1);

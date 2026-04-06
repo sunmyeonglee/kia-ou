@@ -6,6 +6,7 @@ export const maxDuration = 120;
 interface IterationHistory {
   userMessage: string;
   fusionDescription: string;
+  imagePrompt?: string;
 }
 
 interface Phase2Request {
@@ -90,7 +91,10 @@ export async function POST(request: Request) {
   // 이전 이터레이션을 messages로 변환
   const historyMessages: { role: "user" | "assistant"; content: string }[] = history.flatMap((iter) => [
     { role: "user", content: iter.userMessage },
-    { role: "assistant", content: JSON.stringify({ fusionDescription: iter.fusionDescription }) },
+    { role: "assistant", content: JSON.stringify({
+      fusionDescription: iter.fusionDescription,
+      ...(iter.imagePrompt ? { imagePrompt: iter.imagePrompt } : {}),
+    }) },
   ]);
 
   const textContent = `상반된 두 개념: "${concepts[0]}"와 "${concepts[1]}"
@@ -130,14 +134,9 @@ export async function POST(request: Request) {
   const raw = completion.choices[0].message.content ?? "{}";
   const parsed = JSON.parse(raw) as { fusionDescription: string; imagePrompt: string };
 
-  // 이전 이미지 프롬프트 맥락을 DALL-E 프롬프트에 반영
-  const previousContext = history.length > 0
-    ? `This is a refinement based on previous iterations. Previous description: "${history[history.length - 1].fusionDescription}". `
-    : "";
-
   const imageResponse = await openai.images.generate({
     model: "dall-e-3",
-    prompt: previousContext + parsed.imagePrompt,
+    prompt: parsed.imagePrompt,
     n: 1,
     size: "1024x1024",
     quality: "standard",
@@ -149,6 +148,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     fusionDescription: parsed.fusionDescription,
+    imagePrompt: parsed.imagePrompt,
     imageUrl,
     attachedImageUrls,
   });
