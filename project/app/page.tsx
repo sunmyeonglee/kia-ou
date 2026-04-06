@@ -64,12 +64,16 @@ export default function MainPage() {
               />
               <FieldError>{error}</FieldError>
             </Field>
-            <Button onClick={handleStart} className="w-full" size="lg">
+            <Button onClick={handleStart} className="w-full" size="lg" disabled={!teamId.trim()}>
               실험 시작 <ArrowRight className="size-4" />
             </Button>
           </CardContent>
         </Card>
       </div>
+
+      <footer className="mt-auto py-6 text-center text-xs text-muted-foreground/60">
+        KAIST DxD Lab © 2026 All Rights Reserved
+      </footer>
     </main>
   );
 }
