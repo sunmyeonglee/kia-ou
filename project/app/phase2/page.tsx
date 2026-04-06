@@ -33,22 +33,22 @@ function ImageArea({ iterations, activeIndex, setActiveIndex, loading }: ImageAr
   return (
     <div className="flex flex-col bg-muted/30 w-full md:h-full h-[35vh]">
       {iterations.length > 0 && (
-        <div className="shrink-0 flex items-center gap-1 px-3 py-2 bg-background border-b border-border overflow-x-auto">
-          {iterations.map((_, i) => (
-            <Button
+        <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-background border-b border-border overflow-x-auto">
+          {iterations.map((iter, i) => (
+            <button
               key={i}
               onClick={() => setActiveIndex(i)}
-              variant={activeIndex === i ? "default" : "ghost"}
-              size="xs"
-              className="shrink-0"
+              className={`shrink-0 w-10 h-10 rounded-md overflow-hidden border-2 transition-all ${
+                activeIndex === i ? "border-primary" : "border-transparent opacity-50 hover:opacity-80"
+              }`}
             >
-              이미지 {i + 1}
-            </Button>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={iter.imageUrl} alt={`이미지 ${i + 1}`} className="w-full h-full object-cover" />
+            </button>
           ))}
           {loading && (
-            <div className="shrink-0 px-2 py-1 text-xs text-muted-foreground flex items-center gap-1">
+            <div className="shrink-0 w-10 h-10 rounded-md border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
               <div className="w-3 h-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-              생성 중
             </div>
           )}
         </div>
