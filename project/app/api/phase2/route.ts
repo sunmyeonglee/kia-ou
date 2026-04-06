@@ -17,8 +17,8 @@ interface Phase2Request {
 }
 
 const SYSTEM_PROMPT = `너는 창의적 개념 결합을 돕는 AI야.
-사용자가 제시한 두 개의 상반된 개념과 요구사항을 바탕으로, 두 개념이 창의적으로 결합된 방식을 설명해.
-이전 대화 내역이 있다면 그 맥락을 반영하여 수정하거나 발전시켜줘.
+사용자가 제시한 두 개의 상반된 개념과 요구사항을 바탕으로, 두 개념이 창의적으로 결합된 방식을 설명하고 이미지 프롬프트를 생성해.
+이전 대화 내역이 있다면 그 맥락을 유지하면서 사용자의 수정 요청을 반영해.
 반드시 아래 JSON 형식으로만 응답해. 다른 텍스트는 포함하지 마.
 
 {
@@ -29,7 +29,10 @@ const SYSTEM_PROMPT = `너는 창의적 개념 결합을 돕는 AI야.
 주의사항:
 - fusionDescription은 한국어로 3~5문장으로 작성할 것
 - imagePrompt는 DALL-E 3에 적합한 상세한 영어 프롬프트로 작성할 것
-- imagePrompt는 두 개념의 시각적 결합이 명확히 드러나도록 구체적으로 작성할 것`;
+- imagePrompt는 두 개념의 시각적 결합이 명확히 드러나도록 구체적으로 작성할 것
+- 사용자가 이미지 수정을 요청하는 경우(예: "배경 삭제", "배경 흰색으로", "색상 변경" 등), 이전 이미지의 핵심 디자인 요소는 최대한 유지하면서 해당 수정 사항만 imagePrompt에 반영할 것
+- 배경 삭제/제거 요청 시 imagePrompt에 "pure white background, no background elements" 등을 명시할 것
+- 수정 요청이 있어도 두 개념의 결합 정체성은 유지할 것`;
 
 async function uploadImageToSupabase(tempUrl: string, filename: string): Promise<string> {
   const res = await fetch(tempUrl);
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
   // 이전 이터레이션을 messages로 변환
   const historyMessages: { role: "user" | "assistant"; content: string }[] = history.flatMap((iter) => [
     { role: "user", content: iter.userMessage },
-    { role: "assistant", content: JSON.stringify({ fusionDescription: iter.fusionDescription, imagePrompt: "" }) },
+    { role: "assistant", content: JSON.stringify({ fusionDescription: iter.fusionDescription }) },
   ]);
 
   const textContent = `상반된 두 개념: "${concepts[0]}"와 "${concepts[1]}"
