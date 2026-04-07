@@ -18,15 +18,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className={cn("h-full", "font-sans", geist.variable)}>
-      <body className="min-h-full flex flex-col bg-slate-50">
-        {children}
+      <head>
         <Script
           id="clarity"
-          strategy="afterInteractive"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","w7tgdqcywb");`,
           }}
         />
+      </head>
+      <body className="min-h-full flex flex-col bg-slate-50">
+        {children}
       </body>
     </html>
   );
